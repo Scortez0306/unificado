@@ -1,0 +1,50 @@
+import os
+import glob
+import pandas as pd
+from datetime import datetime
+import unicodedata
+import warnings
+
+# Función para normalizar los caracteres
+def normalize_text(text):
+    return unicodedata.normalize('NFKD', text).encode('ISO-8859-1', 'ignore').decode('ISO-8859-1')
+
+# Definir la ruta de la carpeta que contiene los archivos Excel
+folder_path = r'C:\Users\SebastianEduardoCort\Desktop\Flokzu Historico Omar'
+output_file = os.path.join(folder_path, f'Flokzu_unificado_SETI_{datetime.today().strftime("%Y-%m-%d")}.csv')
+
+# Activa las advertencias
+warnings.simplefilter("always")
+
+# Ignora las advertencias específicas relacionadas con openpyxl
+warnings.filterwarnings("ignore", message="Workbook contains no default style, apply openpyxl's default")
+
+print("Leyendo archivos Excel en la carpeta...")
+
+# Obtener todas las columnas únicas presentes en todos los archivos Excel
+all_columns = set()
+for file in glob.glob(os.path.join(folder_path, "*.xlsx")):
+    df = pd.read_excel(file, engine='openpyxl', header=1)
+    all_columns.update(df.columns)
+
+# Leer y concatenar todos los archivos Excel
+print("Unificando los datos de los archivos Excel...")
+df_list = []
+for file in glob.glob(os.path.join(folder_path, "*.xlsx")):
+    print(f"Leyendo archivo: {file}")
+    df = pd.read_excel(file, engine='openpyxl', header=1)
+    # Crear todas las columnas presentes en all_columns y rellenarlas con valores vacíos si no están presentes en df
+    for col in all_columns:
+        if col not in df.columns:
+            df[col] = ""
+    # Normalizar los caracteres de las columnas de texto
+    df = df.applymap(lambda x: normalize_text(x) if isinstance(x, str) else x)
+    df_list.append(df)
+
+# Concatenar todos los dataframes
+df_concatenated = pd.concat(df_list, ignore_index=True)
+
+# Guardar el dataframe concatenado en un nuevo archivo CSV con encoding latin-1
+print(f"Guardando el archivo unificado en: {output_file}")
+df_concatenated.to_csv(output_file, index=False, encoding='latin-1')
+print(f'Archivos unificados exitosamente en: {output_file}')
